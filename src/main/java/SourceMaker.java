@@ -59,7 +59,7 @@ public class SourceMaker {
         Files.walkFileTree(searchPath, sj);
     }
 
-    public void process(Path startingDir, Path jarFile) throws IOException {
+    public Path process(Path startingDir, Path jarFile) throws IOException {
 
         Path location = null;
         
@@ -126,6 +126,8 @@ public class SourceMaker {
                 }
             }
         }
+        
+        return jarFile.getParent().resolve(sourceName);
     }
     
     private void store(FileSystem zipfs, Path pathInZip, Path file) throws IOException {
@@ -183,7 +185,7 @@ public class SourceMaker {
                     return TERMINATE;
                 }
             } else {
-                System.out.format("Other: %s ", file);
+                //System.out.format("Other: %s ", file);
             }
             return CONTINUE;
         }
