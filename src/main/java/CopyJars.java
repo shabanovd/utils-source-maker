@@ -1,9 +1,6 @@
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.security.MessageDigest;
 
 /*
@@ -45,8 +42,14 @@ public class CopyJars {
      */
     public static void main(String[] args) throws Exception {
 
-        if (args.length != 3) {
-            System.err.println("need 3 parameters: \n" + " 1) eXist's source location;\n" + " 2) maven repo location;\n" + " 3) version;");
+        if (args.length < 3) {
+            System.err.println(
+                "need 3 parameters: \n" +
+                " 1) eXist's source location;\n" +
+                " 2) maven repo location;\n" +
+                " 3) version;\n" +
+                " 4) copy pom file from version (optional);"
+            );
             System.exit(1);
         }
 
@@ -57,26 +60,59 @@ public class CopyJars {
 
         String version = args[2];
 
+        String fromVersion = null;
+        if (args.length == 4) fromVersion = args[3];
+
         srcMaker = new SourceMaker(eXist);
 
-        make(eXist.resolve("lib/extensions/exist-contentextraction.jar"), "existdb-contentextraction", version);
-        make(eXist.resolve("exist.jar"), "existdb-core", version);
-        make(eXist.resolve("lib/extensions/exist-index-lucene.jar"), "existdb-index-lucene", version);
-        make(eXist.resolve("lib/extensions/exist-index-ngram.jar"), "existdb-index-ngram", version);
-        make(eXist.resolve("lib/extensions/exist-index-range.jar"), "existdb-index-range", version);
-        make(eXist.resolve("lib/extensions/exist-metadata-sleepycat.jar"), "existdb-metadata-berkeley", version);
-        make(eXist.resolve("lib/extensions/exist-metadata-interface.jar"), "existdb-metadata-interface", version);
-        make(eXist.resolve("exist-optional.jar"), "existdb-optional", version);
-        make(eXist.resolve("lib/extensions/exist-modules.jar"), "existdb-xquery-modules", version);
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-contentextraction.jar"), "existdb-contentextraction");
+        make(version, fromVersion, eXist.resolve("exist.jar"), "existdb-core");
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-lucene.jar"), "existdb-index-lucene");
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-ngram.jar"), "existdb-index-ngram");
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-range.jar"), "existdb-index-range");
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-metadata-sleepycat.jar"), "existdb-metadata-berkeley");
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-metadata-interface.jar"), "existdb-metadata-interface");
+        make(version, fromVersion, eXist.resolve("exist-optional.jar"), "existdb-optional");
+
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-ldap.jar"), "existdb-security-ldap");
+//        make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-saml.jar"), "existdb-security-saml");
+
+        make(version, fromVersion, eXist.resolve("start.jar"), "existdb-start");
+
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-versioning.jar"), "existdb-versioning");
+
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-xslt.jar"), "existdb-xslt");
+
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-modules.jar"), "existdb-xquery-modules");
     }
 
-    private static void make(Path jar, String artifactId, String version) throws IOException {
-        Path dist = maven.resolve(artifactId).resolve(version).resolve(artifactId + "-" + version+".jar");
+    private static void make(String version, String fromVersion, Path jar, String artifactId) throws IOException {
+
+        Path folder = maven.resolve(artifactId).resolve(version);
+        if (Files.notExists(folder)) Files.createDirectories(folder);
+
+        Path pom = folder.resolve(artifactId + "-" + version+".pom");
+
+        if (fromVersion != null) {
+            if (Files.notExists(pom)) {
+
+                Path original_pom = maven.resolve(artifactId).resolve(fromVersion).resolve(artifactId + "-" + fromVersion + ".pom");
+
+                String dataPom = new String( Files.readAllBytes(original_pom) );
+
+                dataPom = dataPom.replace("<version>"+fromVersion+"</version>", "<version>"+version+"</version>");
+
+                Files.write(pom, dataPom.getBytes(), StandardOpenOption.CREATE);
+            }
+        }
+
+        Path dist = folder.resolve(artifactId + "-" + version + ".jar");
 
         Files.copy(jar, dist, StandardCopyOption.REPLACE_EXISTING);
 
         Path src = srcMaker.process(eXist, dist);
 
+        calcSHA(pom);
         calcSHA(dist);
         calcSHA(src);
         
