@@ -75,7 +75,7 @@ public class CopyJars {
         make(version, fromVersion, eXist.resolve("exist-optional.jar"), "existdb-optional");
 
         make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-ldap.jar"), "existdb-security-ldap");
-//        make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-saml.jar"), "existdb-security-saml");
+        make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-saml.jar"), "existdb-security-saml");
 
         make(version, fromVersion, eXist.resolve("start.jar"), "existdb-start");
 
@@ -84,6 +84,8 @@ public class CopyJars {
         make(version, fromVersion, eXist.resolve("lib/extensions/exist-xslt.jar"), "existdb-xslt");
 
         make(version, fromVersion, eXist.resolve("lib/extensions/exist-modules.jar"), "existdb-xquery-modules");
+
+//        make(version, fromVersion, eXist.resolve("lib/extensions/exist-restxq.jar"), "existdb-restxq");
     }
 
     private static void make(String version, String fromVersion, Path jar, String artifactId) throws IOException {
@@ -139,10 +141,11 @@ public class CopyJars {
             byte[] mdbytes = md.digest();
 
             // convert the byte to hex format
-            StringBuffer sb = new StringBuffer("");
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < mdbytes.length; i++) {
                 sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1));
             }
+            sb.append("\n");
             
             Files.write(shaFile, sb.toString().getBytes());
         }
