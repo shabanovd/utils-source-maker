@@ -1,5 +1,7 @@
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.nio.file.*;
 import java.security.MessageDigest;
 
@@ -53,6 +55,8 @@ public class CopyJars {
             System.exit(1);
         }
 
+        StringBuilder deploy = new StringBuilder();
+
         md = MessageDigest.getInstance("SHA1");
 
         eXist = Paths.get(args[0]);
@@ -65,30 +69,40 @@ public class CopyJars {
 
         srcMaker = new SourceMaker(eXist);
 
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-contentextraction.jar"), "existdb-contentextraction");
-        make(version, fromVersion, eXist.resolve("exist.jar"), "existdb-core");
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-lucene.jar"), "existdb-index-lucene");
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-ngram.jar"), "existdb-index-ngram");
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-range.jar"), "existdb-index-range");
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-metadata-sleepycat.jar"), "existdb-metadata-berkeley");
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-metadata-interface.jar"), "existdb-metadata-interface");
-        make(version, fromVersion, eXist.resolve("exist-optional.jar"), "existdb-optional");
+        boolean oldFlag = true;
 
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-ldap.jar"), "existdb-security-ldap");
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-saml.jar"), "existdb-security-saml");
+//        make(version, fromVersion, eXist.resolve("lib/extensions/exist-contentextraction.jar"), "existdb-contentextraction");
+        make(deploy, version, fromVersion, eXist.resolve("exist.jar"), "existdb-core");
+//        make(version, fromVersion, eXist.resolve("lib/extensions/exist-index-range.jar"), "existdb-index-range");
+        make(deploy, version, fromVersion, eXist.resolve("exist-optional.jar"), "existdb-optional");
 
-        make(version, fromVersion, eXist.resolve("start.jar"), "existdb-start");
+        make(deploy, version, fromVersion, eXist.resolve("start.jar"), "existdb-start");
 
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-versioning.jar"), "existdb-versioning");
-
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-xslt.jar"), "existdb-xslt");
-
-        make(version, fromVersion, eXist.resolve("lib/extensions/exist-modules.jar"), "existdb-xquery-modules");
+        make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-modules.jar"), "existdb-xquery-modules");
 
 //        make(version, fromVersion, eXist.resolve("lib/extensions/exist-restxq.jar"), "existdb-restxq");
+
+        //old version
+        if (oldFlag) {
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-index-ngram.jar"), "existdb-index-ngram");
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-versioning.jar"), "existdb-versioning");
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-index-lucene.jar"), "existdb-index-lucene");
+
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-metadata-sleepycat.jar"), "existdb-metadata-berkeley");
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-metadata-interface.jar"), "existdb-metadata-interface");
+
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-xslt.jar"), "existdb-xslt");
+
+            make(deploy, version, fromVersion, eXist.resolve("lib/extensions/exist-security-ldap.jar"), "existdb-security-ldap");
+//            make(version, fromVersion, eXist.resolve("lib/extensions/exist-security-saml.jar"), "existdb-security-saml");
+        }
+
+        try (PrintStream out = new PrintStream(new FileOutputStream("deploy.sh"))) {
+            out.print(deploy);
+        }
     }
 
-    private static void make(String version, String fromVersion, Path jar, String artifactId) throws IOException {
+    private static void make(StringBuilder deploy, String version, String fromVersion, Path jar, String artifactId) throws IOException {
 
         Path folder = maven.resolve(artifactId).resolve(version);
         if (Files.notExists(folder)) Files.createDirectories(folder);
@@ -109,6 +123,14 @@ public class CopyJars {
         }
 
         Path dist = folder.resolve(artifactId + "-" + version + ".jar");
+
+        deploy.append("mvn deploy:deploy-file");
+        deploy.append(" -DgeneratePom=false");
+        deploy.append(" -DrepositoryId=nexus.easydita");
+        deploy.append(" -Durl=https://nexus.easydita.com/repository/snapshots/");
+        deploy.append(" -DpomFile="+pom);
+        deploy.append(" -Dfile="+dist);
+        deploy.append("\n");
 
         Files.copy(jar, dist, StandardCopyOption.REPLACE_EXISTING);
 
